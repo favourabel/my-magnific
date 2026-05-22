@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { Link } from "react-router-dom";
+
 import { IoMdSearch } from "react-icons/io";
 import { CiMenuBurger } from "react-icons/ci";
 import { IoClose } from "react-icons/io5";
@@ -18,16 +20,29 @@ const Navbar = () => {
           <div className='flex items-center gap-[2rem]'>
 
             <div className='text-white font-bold text-[40px] ml-[20px]'>
-              Magnific
+              M
             </div>
 
-            <ul className='flex text-[22px] gap-[25px] mt-[10px] text-white'>
-              <li><a href="#home">Home</a></li>
-              <li><a href="#creativity">Creativity</a></li>
-              <li><a href="#selfies">Selfies</a></li>
-              <li><a href="#about">About</a></li>
-              <li><a href="#highlightening">Highlightening</a></li>
-            </ul>
+    <ul className='flex text-[22px] gap-[25px] mt-[10px] text-white'>
+          
+          <li>
+         <Link to="/">Home</Link>
+        </li>
+
+          <li><a href="#creativity">Creativity</a></li>
+          <li><a href="#selfies">Selfies</a></li>
+          <li><a href="#about">About</a></li>
+          <li><a href="#highlightening">Highlightening</a></li>
+   
+        
+       <li>
+         <Link to="/Login">Login</Link>
+        </li>
+
+      <li>
+        <Link to="/Signup">Signup</Link>
+       </li>
+</ul>
 
           </div>
 
@@ -44,14 +59,6 @@ const Navbar = () => {
               />
 
             </div>
-
-            <button className='bg-transparent border-[2px] text-[17px] p-[10px] m-[10px] rounded-[8px] border-white text-white'>
-              Login
-            </button>
-
-            <button className='bg-yellow-400 font-bold rounded-[7px] mr-[10px] p-[6px]'>
-              Sign Up
-            </button>
 
           </div>
 
@@ -109,7 +116,7 @@ const Navbar = () => {
             <a href="#selfies">Selfies</a>
             <a href="#about">About</a>
             <a href="#highlightening">Highlightening</a>
-
+            
           </div>
         )
       }
