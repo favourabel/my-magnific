@@ -8,11 +8,11 @@ const Signuppage = () => {
         
           <Navbar />
 
-         <div style={{backgroundColor : "grey"}} className='w-[80%] m-auto rounded-[8px] py-[30px] mt-[60px]'>
+         <div style={{backgroundColor : "grey"}} className=' w-[80%] m-auto rounded-[8px] py-[30px] mt-[60px]'>
               
-          <form className='w-[25%] m-auto bg-grey-500 mt-[50px]'>
+          <form className='flex-col md:flex-row w-[25%] m-auto bg-grey-500 mt-[50px]'>
 
-                 <div>
+                 <div className='flex-col md:flex-row'>
                   <p className='text-green-400 text-[30px] font-bold'>Create an Account with us today</p>
              <p className='text-green-400 text-[40px]'>Sign up</p>
                 </div>

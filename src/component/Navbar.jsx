@@ -97,10 +97,6 @@ const Navbar = () => {
 
           <IoMdSearch className="text-white mt-[5px] text-[25px]" />
 
-          <button className='bg-yellow-400 font-bold rounded-[7px] mr-[10px] p-[6px]'>
-            Login
-          </button>
-
         </div>
 
       </div>
@@ -110,13 +106,25 @@ const Navbar = () => {
       {
         openMenu && (
           <div className="md:hidden bg-black text-white flex flex-col gap-[25px] p-[20px] text-[22px]">
+             
+              <li>
+         <Link to="/">Home</Link>
+        </li>
 
-            <a href="#home">Home</a>
+            
             <a href="#creativity">Creativity</a>
             <a href="#selfies">Selfies</a>
             <a href="#about">About</a>
             <a href="#highlightening">Highlightening</a>
             
+              <li>
+         <Link to="/Login">Login</Link>
+        </li>
+
+            <li>
+        <Link to="/Signup">Signup</Link>
+       </li>
+
           </div>
         )
       }
