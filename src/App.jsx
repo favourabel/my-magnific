@@ -2,10 +2,10 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
-import Homepage from "./pages_men/Homepage";
-import Loginpage from "./pages_men/Loginpage";
-import Signuppage from "./pages_men/Signuppage";
-import Dashboard from "./pages_men/Dashboardpage";
+import Homepage from "./pages_mess/Homepage";
+import Loginpage from "./pages_mess/Loginpage";
+import Signuppage from "./pages_mess/Signuppage";
+import Dashboard from "./pages_mess/Dashboardpage";
 
 const App = () => {
   return (
