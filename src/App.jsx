@@ -5,6 +5,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Homepage from "./pages_men/Homepage";
 import Loginpage from "./pages_men/Loginpage";
 import Signuppage from "./pages_men/Signuppage";
+import Dashboard from "./pages_men/Dashboardpage";
 
 const App = () => {
   return (
@@ -14,8 +15,9 @@ const App = () => {
     
       <Routes>
           <Route path="/" element={<Homepage />} />
-        <Route path="/Login" element={<Loginpage />} />
-        <Route path="/Signup" element={<Signuppage />} />
+        <Route path="/login" element={<Loginpage />} />
+        <Route path="/signup" element={<Signuppage />} />
+         <Route path="/dashboard" element={<Dashboard />} />
       </Routes>
 
     </div>
