@@ -33,14 +33,14 @@ const Signuppage = () => {
 
 
 
-  // IMAGE HANDLE FUNCTION (FIXED - NO PREVIEW IMAGE DISPLAY ISSUE)
+  // IMAGE HANDLE FUNCTION
   const handleImageChange = (e) => {
 
     const file = e.target.files[0];
 
     if (!file) return;
 
-    // prevent localStorage crash
+    // IMAGE SIZE VALIDATION
     if (file.size > 2 * 1024 * 1024) {
       setMessage("Image too large. Please upload below 2MB.");
       return;
@@ -74,25 +74,55 @@ const Signuppage = () => {
       return;
     }
 
+    // FIRST NAME VALIDATION
+    if (formData.firstName.trim() === "") {
+      setMessage("Please input your first name");
+      return;
+    }
+
+    // LAST NAME VALIDATION
+    if (formData.lastName.trim() === "") {
+      setMessage("Please input your last name");
+      return;
+    }
+
+    // COUNTRY VALIDATION
+    if (formData.country.trim() === "") {
+      setMessage("Please input your country");
+      return;
+    }
+
     // PASSWORD VALIDATION
     if (formData.password.length < 8) {
       setMessage("Password must be at least 8 characters");
       return;
     }
 
-    // CONFIRM PASSWORD
+    // CONFIRM PASSWORD VALIDATION
+    if (formData.confirmPassword.length < 8) {
+      setMessage("Confirm password must be at least 8 characters");
+      return;
+    }
+
+    // PASSWORD MATCH VALIDATION
     if (formData.password !== formData.confirmPassword) {
       setMessage("Passwords do not match");
       return;
     }
 
-    // CHECK IF IMAGE EXISTS
+    // PHONE NUMBER VALIDATION
+    if (formData.phoneNumber.trim() === "") {
+      setMessage("Please input your phone number");
+      return;
+    }
+
+    // IMAGE VALIDATION
     if (!formData.photo) {
       setMessage("Please upload an image");
       return;
     }
 
-    // CHECK IF EMAIL ALREADY EXISTS
+    // CHECK IF EMAIL EXISTS
     const existingUser = JSON.parse(localStorage.getItem("userData"));
 
     if (existingUser && existingUser.email === formData.email) {
@@ -101,20 +131,24 @@ const Signuppage = () => {
     }
 
     try {
-      // SAVE USER DATA
+
+      // SAVE USER DATA TO LOCAL STORAGE
       localStorage.setItem("userData", JSON.stringify(formData));
 
       setMessage("Signup successful");
 
-      // NAVIGATE AFTER 2 SECONDS
+      // NAVIGATE TO LOGIN PAGE AFTER 2 SECONDS
       setTimeout(() => {
         navigate("/login");
       }, 2000);
 
     } catch (error) {
+
       setMessage("Storage error: image too large. Try smaller image.");
     }
   };
+
+
 
   return (
     <div className='bg-black min-h-screen px-[10px] sm:px-[20px]'>
@@ -139,6 +173,7 @@ const Signuppage = () => {
           </div>
 
           <div>
+
             <input
               name='email'
               value={formData.email}
@@ -149,15 +184,31 @@ const Signuppage = () => {
               className='border-[2px] p-[10px] mt-[30px] w-full bg-transparent text-white'
             />
 
+            {!formData.email.includes("@") && formData.email !== "" && (
+              <p className='text-red-500 mt-[5px]'>
+                Email must contain @
+              </p>
+            )}
+
+
+
             <input
               name='firstName'
               value={formData.firstName}
               onChange={handleChange}
               required
               type='text'
-              placeholder='firstName'
+              placeholder='First Name'
               className='border-[2px] p-[10px] mt-[20px] w-full bg-transparent text-white'
             />
+
+            {formData.firstName === "" && (
+              <p className='text-red-500 mt-[5px]'>
+                Please input your first name
+              </p>
+            )}
+
+
 
             <input
               name='lastName'
@@ -165,9 +216,17 @@ const Signuppage = () => {
               onChange={handleChange}
               required
               type='text'
-              placeholder='lastName'
+              placeholder='Last Name'
               className='border-[2px] p-[10px] mt-[20px] w-full bg-transparent text-white'
             />
+
+            {formData.lastName === "" && (
+              <p className='text-red-500 mt-[5px]'>
+                Please input your last name
+              </p>
+            )}
+
+
 
             <input
               name='country'
@@ -175,12 +234,22 @@ const Signuppage = () => {
               onChange={handleChange}
               required
               type='text'
-              placeholder='country'
+              placeholder='Country'
               className='border-[2px] p-[10px] mt-[20px] w-full bg-transparent text-white'
             />
+
+            {formData.country === "" && (
+              <p className='text-red-500 mt-[5px]'>
+                Please input your country
+              </p>
+            )}
+
           </div>
 
+
+
           <div>
+
             <input
               name='password'
               value={formData.password}
@@ -191,6 +260,15 @@ const Signuppage = () => {
               className='border-[2px] p-[10px] mt-[20px] w-full bg-transparent text-white'
             />
 
+            {formData.password.length > 0 &&
+              formData.password.length < 8 && (
+              <p className='text-red-500 mt-[5px]'>
+                Minimum password length is 8 characters
+              </p>
+            )}
+
+
+
             <input
               name='confirmPassword'
               value={formData.confirmPassword}
@@ -200,9 +278,20 @@ const Signuppage = () => {
               placeholder='Confirm Password'
               className='border-[2px] p-[10px] mt-[20px] w-full bg-transparent text-white'
             />
+
+            {formData.confirmPassword.length > 0 &&
+              formData.confirmPassword.length < 8 && (
+              <p className='text-red-500 mt-[5px]'>
+                Minimum confirm password length is 8 characters
+              </p>
+            )}
+
           </div>
 
+
+
           <div>
+
             <input
               name='phoneNumber'
               value={formData.phoneNumber}
@@ -212,17 +301,30 @@ const Signuppage = () => {
               placeholder='Phone Number'
               className='border-[2px] p-[10px] mt-[20px] w-full bg-transparent text-white'
             />
+
+            {formData.phoneNumber === "" && (
+              <p className='text-red-500 mt-[5px]'>
+                Please input your phone number
+              </p>
+            )}
+
           </div>
 
-          {/* IMAGE INPUT ONLY (NO DISPLAY) */}
+
+
+          {/* IMAGE INPUT */}
           <div>
+
             <input
               type="file"
               accept="image/*"
               onChange={handleImageChange}
               className='mt-[20px] text-white'
             />
+
           </div>
+
+
 
           <button
             type='submit'
@@ -230,6 +332,8 @@ const Signuppage = () => {
           >
             Signup
           </button>
+
+
 
           {message && (
             <p className='text-white text-center mt-[10px]'>
