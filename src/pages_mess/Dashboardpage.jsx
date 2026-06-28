@@ -519,7 +519,9 @@ const Dashboard = () => {
     }
   };
 
-  // Subtitle Generation (Screen Capture Method)
+  // ==================== FIXED SUBTITLE GENERATION ====================
+
+  // Fixed: Screen Capture Method with proper audio routing
   const generateSubtitlesViaScreenCapture = async () => {
     if (!currentPreviewUrl || !videoRef.current) {
       alert("Please load a video first.");
@@ -548,8 +550,12 @@ const Dashboard = () => {
 
     try {
       const displayStream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
-        audio: true,
+        video: { mediaSource: 'screen' },
+        audio: {
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+        },
       });
 
       const audioTracks = displayStream.getAudioTracks();
@@ -561,74 +567,130 @@ const Dashboard = () => {
         return;
       }
 
-      const audioStream = new MediaStream(audioTracks);
-      mediaStreamRef.current = displayStream;
+      // Stop video tracks immediately (we only need audio)
       displayStream.getVideoTracks().forEach(track => track.stop());
+
+      // Store stream for cleanup
+      mediaStreamRef.current = displayStream;
+
+      // Create audio context and process the audio
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)({
+        sampleRate: 16000, // Optimal for speech recognition
+      });
+      audioContextRef.current = audioContext;
+
+      const source = audioContext.createMediaStreamSource(new MediaStream(audioTracks));
+      const analyser = audioContext.createAnalyser();
+      const destination = audioContext.createMediaStreamDestination();
+      
+      source.connect(analyser);
+      analyser.connect(destination);
 
       setSubtitleStatus("✅ Audio captured! Starting...");
 
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      audioContextRef.current = audioContext;
-      
-      const source = audioContext.createMediaStreamSource(audioStream);
-      const destination = audioContext.createMediaStreamDestination();
-      source.connect(destination);
-
+      // Reset video and start
+      videoRef.current.currentTime = 0;
+      videoRef.current.muted = false;
+      videoRef.current.volume = 1;
       subtitleStartTimeRef.current = Date.now();
 
+      // Start recognition with proper audio stream
       const startRecognition = () => {
         const recognition = new SpeechRecognition();
         recognition.continuous = true;
         recognition.interimResults = true;
         recognition.lang = subtitleLang;
+        recognition.maxAlternatives = 1;
 
         recognition.onstart = () => {
+          console.log("✅ Recognition started");
           setSubtitleStatus("🎤 Listening...");
         };
 
         recognition.onresult = (event) => {
           let interimText = "";
+          
           for (let i = event.resultIndex; i < event.results.length; i++) {
-            const text = event.results[i][0].transcript.trim();
+            const result = event.results[i];
+            const text = result[0].transcript.trim();
             
-            if (event.results[i].isFinal && text) {
+            if (result.isFinal && text) {
               const elapsed = (Date.now() - subtitleStartTimeRef.current) / 1000;
-              const dur = Math.max(2, Math.min(5, text.split(' ').length * 0.4));
+              const wordCount = text.split(' ').length;
+              const duration = Math.max(2, Math.min(5, wordCount * 0.5));
+              
               const segment = {
                 id: Date.now() + i + Math.random(),
-                start: Math.max(0, elapsed - dur),
+                start: Math.max(0, elapsed - duration),
                 end: elapsed,
                 text: text,
               };
+              
               subtitleCollectedRef.current.push(segment);
               setSubtitles([...subtitleCollectedRef.current]);
-              setSubtitleStatus(`✅ ${subtitleCollectedRef.current.length} segments`);
-            } else {
+              setSubtitleStatus(`✅ ${subtitleCollectedRef.current.length} segments captured`);
+              
+              console.log("📝 New subtitle:", text);
+            } else if (!result.isFinal) {
               interimText += text + " ";
             }
           }
+          
           if (interimText.trim()) {
-            setSubtitleStatus(`💬 "${interimText.trim().substring(0, 30)}..."`);
+            setSubtitleStatus(`💬 "${interimText.trim().substring(0, 40)}..."`);
           }
         };
 
         recognition.onerror = (event) => {
-          if (event.error === 'not-allowed') {
+          console.error("❌ Recognition error:", event.error);
+          
+          if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
             subtitleShouldRestartRef.current = false;
-            alert("❌ Mic permission needed");
+            alert("❌ Microphone permission denied");
             stopSubtitleGeneration();
+          } else if (event.error === 'no-speech') {
+            console.warn("⚠️ No speech detected, continuing...");
+          } else if (event.error === 'aborted') {
+            // Ignore aborted errors during cleanup
+            return;
+          } else {
+            // For other errors, try to restart
+            if (subtitleShouldRestartRef.current) {
+              setTimeout(() => {
+                try { 
+                  recognition.start(); 
+                } catch(e) {
+                  console.warn("Restart failed:", e);
+                }
+              }, 500);
+            }
           }
         };
 
         recognition.onend = () => {
-          if (subtitleShouldRestartRef.current && videoRef.current && !videoRef.current.ended) {
+          console.log("🔚 Recognition ended");
+          
+          // Auto-restart if video is still playing and we should continue
+          if (subtitleShouldRestartRef.current && 
+              videoRef.current && 
+              !videoRef.current.paused && 
+              !videoRef.current.ended) {
+            
             setTimeout(() => {
-              try { startRecognition(); } catch(e) {}
+              try { 
+                recognition.start();
+                console.log("🔄 Recognition restarted");
+              } catch(e) {
+                console.warn("Could not restart recognition:", e);
+                cleanupSubtitleGeneration();
+              }
             }, 100);
           } else {
+            // Clean up when done
             cleanupSubtitleGeneration();
+            
             if (subtitleCollectedRef.current.length === 0) {
-              alert("❌ No subtitles captured");
+              alert("❌ No subtitles captured. Make sure:\n\n1. Tab audio was shared\n2. Video has audible speech\n3. Volume is up");
             } else {
               alert(`✅ ${subtitleCollectedRef.current.length} subtitles generated!`);
             }
@@ -636,29 +698,60 @@ const Dashboard = () => {
         };
 
         recognitionRef.current = recognition;
-        recognition.start();
-      };
-
-      startRecognition();
-      await new Promise(r => setTimeout(r, 500));
-      
-      videoRef.current.currentTime = 0;
-      videoRef.current.muted = false;
-      videoRef.current.volume = 1;
-      await videoRef.current.play();
-
-      videoRef.current.onended = () => {
-        subtitleShouldRestartRef.current = false;
-        if (recognitionRef.current) {
-          try { recognitionRef.current.stop(); } catch(e) {}
+        
+        try {
+          recognition.start();
+        } catch (e) {
+          console.error("Failed to start recognition:", e);
+          alert("Failed to start speech recognition: " + e.message);
+          cleanupSubtitleGeneration();
         }
       };
 
+      // Wait a bit for audio context to initialize
+      await new Promise(r => setTimeout(r, 500));
+      
+      // Start video playback
+      try {
+        await videoRef.current.play();
+        console.log("▶️ Video playing");
+      } catch (err) {
+        console.error("Play error:", err);
+        alert("Could not play video: " + err.message);
+        cleanupSubtitleGeneration();
+        return;
+      }
+
+      // Start speech recognition
+      startRecognition();
+
+      // Handle video end
+      videoRef.current.onended = () => {
+        console.log("📹 Video ended");
+        subtitleShouldRestartRef.current = false;
+        if (recognitionRef.current) {
+          try { 
+            recognitionRef.current.stop(); 
+          } catch(e) {
+            console.warn("Could not stop recognition:", e);
+          }
+        }
+      };
+
+      // Handle stream stop (user stops sharing)
       displayStream.getTracks().forEach(track => {
         track.onended = () => {
+          console.log("🛑 Screen share stopped by user");
           subtitleShouldRestartRef.current = false;
           if (recognitionRef.current) {
-            try { recognitionRef.current.stop(); } catch(e) {}
+            try { 
+              recognitionRef.current.stop(); 
+            } catch(e) {
+              console.warn("Could not stop recognition:", e);
+            }
+          }
+          if (videoRef.current) {
+            videoRef.current.pause();
           }
         };
       });
@@ -667,10 +760,18 @@ const Dashboard = () => {
       console.error("Screen capture error:", err);
       setGeneratingSubtitles(false);
       setSubtitleStatus("");
-      alert("Error: " + err.message);
+      
+      if (err.name === 'NotAllowedError') {
+        alert("❌ Screen sharing permission denied");
+      } else if (err.name === 'NotFoundError') {
+        alert("❌ No screen sharing source found");
+      } else {
+        alert("Error: " + err.message);
+      }
     }
   };
 
+  // Fixed: Microphone Method
   const generateSubtitlesViaMic = async () => {
     if (!currentPreviewUrl || !videoRef.current) {
       alert("Please load a video first.");
@@ -685,7 +786,10 @@ const Dashboard = () => {
 
     const ready = window.confirm(
       "📢 MICROPHONE MODE\n\n" +
-      "Requires max volume + mic near speaker.\n\n" +
+      "⚠️ Requirements:\n" +
+      "• Max volume\n" +
+      "• Quiet room\n" +
+      "• Mic near speaker\n\n" +
       "Continue?"
     );
     if (!ready) return;
@@ -707,8 +811,11 @@ const Dashboard = () => {
         recognition.continuous = true;
         recognition.interimResults = true;
         recognition.lang = subtitleLang;
+        recognition.maxAlternatives = 1;
 
-        recognition.onstart = () => setSubtitleStatus("🎤 Listening...");
+        recognition.onstart = () => {
+          setSubtitleStatus("🎤 Listening...");
+        };
 
         recognition.onresult = (event) => {
           let interimText = "";
@@ -716,7 +823,7 @@ const Dashboard = () => {
             const text = event.results[i][0].transcript.trim();
             if (event.results[i].isFinal && text) {
               const elapsed = (Date.now() - subtitleStartTimeRef.current) / 1000;
-              const dur = Math.max(2, Math.min(5, text.split(' ').length * 0.4));
+              const dur = Math.max(2, Math.min(5, text.split(' ').length * 0.5));
               const segment = {
                 id: Date.now() + i + Math.random(),
                 start: Math.max(0, elapsed - dur),
@@ -740,13 +847,15 @@ const Dashboard = () => {
             subtitleShouldRestartRef.current = false;
             alert("❌ Mic denied");
             cleanupSubtitleGeneration();
+          } else if (event.error === 'no-speech') {
+            console.warn("No speech detected");
           }
         };
 
         recognition.onend = () => {
-          if (subtitleShouldRestartRef.current && videoRef.current && !videoRef.current.ended) {
+          if (subtitleShouldRestartRef.current && videoRef.current && !videoRef.current.ended && !videoRef.current.paused) {
             setTimeout(() => {
-              try { startRecognition(); } catch(e) {}
+              try { recognition.start(); } catch(e) {}
             }, 100);
           } else {
             cleanupSubtitleGeneration();
@@ -758,7 +867,7 @@ const Dashboard = () => {
       };
 
       startRecognition();
-      await new Promise(r => setTimeout(r, 500));
+      await new Promise(r => setTimeout(r, 300));
       await videoRef.current.play();
 
       videoRef.current.onended = () => {
@@ -775,15 +884,37 @@ const Dashboard = () => {
     }
   };
 
+  // Enhanced cleanup function
   const cleanupSubtitleGeneration = () => {
     setGeneratingSubtitles(false);
     setSubtitleStatus("");
+    
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+        recognitionRef.current = null;
+      } catch(e) {
+        console.warn("Recognition cleanup error:", e);
+      }
+    }
+    
     if (mediaStreamRef.current) {
-      mediaStreamRef.current.getTracks().forEach(track => track.stop());
+      mediaStreamRef.current.getTracks().forEach(track => {
+        try {
+          track.stop();
+        } catch(e) {
+          console.warn("Track stop error:", e);
+        }
+      });
       mediaStreamRef.current = null;
     }
-    if (audioContextRef.current) {
-      try { audioContextRef.current.close(); } catch(e) {}
+    
+    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+      try { 
+        audioContextRef.current.close(); 
+      } catch(e) {
+        console.warn("AudioContext close error:", e);
+      }
       audioContextRef.current = null;
     }
   };
@@ -841,7 +972,8 @@ const Dashboard = () => {
     subtitleCollectedRef.current = updated;
   };
 
-  // Render Video
+  // ==================== RENDER VIDEO ====================
+
   const renderEditedVideo = () => {
     return new Promise(async (resolve, reject) => {
       try {
@@ -1603,7 +1735,7 @@ const Dashboard = () => {
     );
   };
 
-  // ==================== OTHER SECTIONS (Unchanged) ====================
+  // ==================== OTHER SECTIONS ====================
 
   const renderUploadSection = () => (
     <div className="max-w-5xl mx-auto pb-20">
